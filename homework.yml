@@ -1,52 +1,40 @@
 ---
-- name: install soft
+- name: Update APT and install packages
   hosts: devel
   become: yes
   tasks:
-  - name: Update APT package manager repositories cache
-    apt:
-     update_cache: yes
-  - name: Ensure git package is present
-    apt:
-     name: git
-     state: present
-  - name: Check maven is here
-    apt:
-     name: maven
-     state: present
-  - name: Check python is here
-    apt:
-     name: python
-     state: present
-  - name: check tomcat is here
-    apt:
-     name: tomcat8
-     state: present
+   - name: apt update && apt install
+#     apt: package={{ item }} update_cache=yes
+#     with_items:
+     apt:
+      pkg:
+       - git
+       - maven
+       - tomcat8
+       - python
+      update_cache: yes
 
 - name: build package
   hosts: devel
   become: yes
   tasks:
-  - name: download test package from github
-    shell:
-     chdir: /root
-     cmd: git clone https://github.com/doct15/example-tomcat-war.git
-  - name: Build package with maven
-    shell:
-     chdir: /root/example-tomcat-war
-     cmd: mvn package
-  - name: copy artefact to tomcat dir
-    shell:
-     cmd: cp /root/example-tomcat-war/target/SimpleTomcatWebApp.war  /var/lib/tomcat8/webapps
-#     cmd: cp /root/example-tomcat-war/target/SimpleTomcatWebApp.war /usr/local/tomcat/webapps/
-#    file:
-#     path: /usr/local/tomcat/webapps/SimpleTomcatWebApp.war
-#     state: present
-#    copy:
-#     become: true     
-#     src: /root/example-tomcat-war/target/SimpleTomcatWebApp.war
-#     dest: /usr/local/tomcat/webapps
-  - name: tomcat8 restart
-    service:
-     name: tomcat8
-     state: restarted
+   - name: download test package from github
+     git:
+      repo: https://github.com/doct15/example-tomcat-war.git
+#      clone: yes
+      dest: /root/repo
+   - name: build package with maven
+     command:
+      chdir: /root/repo
+      cmd: mvn package
+   - name: copy artefact to tomcat dir
+     command:
+      cmd: mv /root/repo/target/SimpleTomcatWebApp.war
+           /var/lib/tomcat8/webapps
+     notify:
+       - restart tomcat8
+  handlers:
+   - name: restart tomcat8
+     service:
+      name: tomcat8
+      state: restarted
